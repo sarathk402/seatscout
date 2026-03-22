@@ -203,9 +203,19 @@ async def chat(request: Request):
                 avail = sum(1 for r in seat_map.rows for s in r if s.status == "available")
                 recs = find_best_seats(seat_map, showtime, num_seats, top_n=2)
 
+                # Format date for display
+                show_date = ""
+                if showtime.date:
+                    try:
+                        dt = datetime.date.fromisoformat(showtime.date)
+                        show_date = dt.strftime("%a %b %d")
+                    except Exception:
+                        show_date = showtime.date
+
                 theater_result = {
                     "theater": showtime.theater_name,
                     "time": showtime.time,
+                    "date": show_date or display_date,
                     "format": showtime.format,
                     "price": showtime.price,
                     "available": avail,
