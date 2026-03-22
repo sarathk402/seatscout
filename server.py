@@ -296,7 +296,8 @@ Return JSON only. Rules:
 - "tomorrow" = day {tomorrow_day}, "today" = day {today_day}
 - Default seats=2, time_pref="evening", format_pref="any"
 - DO NOT correct movie spelling — return exactly what user typed
-- CITY NAMES: If user says a city name (Irvine, Frisco, Dallas, Plano, etc), convert it to a zipcode. Common ones: Frisco TX=75035, Plano TX=75024, Allen TX=75013, McKinney TX=75070, Dallas TX=75201, Irvine CA=92614, Los Angeles CA=90001, New York NY=10001, Chicago IL=60601, Houston TX=77001, San Francisco CA=94102. For other cities, use your best knowledge of the main zipcode.
+- ANY 5-digit number is a valid US zipcode. NEVER say a zipcode is invalid. Just use it as-is.
+- CITY NAMES: If user says a city name (Irvine, Frisco, Dallas, etc), convert it to a zipcode. Common ones: Frisco TX=75035, Plano TX=75024, Allen TX=75013, McKinney TX=75070, Dallas TX=75201, Irvine CA=92614, Los Angeles CA=90001, New York NY=10001, Chicago IL=60601, Houston TX=77001, San Francisco CA=94102, Dublin CA=94568, Sunnyvale CA=94086. For other cities, use your best knowledge of the main zipcode.
 - If user says "near me" with NO city or zipcode, ask for their zipcode or city.
 - If user gives just a zipcode or city name as follow-up, USE the movie from the previous conversation.
 - If user says "how about morning" or "check Monday" etc, keep the same movie and zipcode from previous conversation and only change what they asked."""
