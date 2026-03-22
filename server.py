@@ -90,15 +90,16 @@ async def chat(request: Request):
 
         action = parsed.get("action", "search")
 
-        # Log EVERY interaction
-        await log_search({
-            "type": action,
-            "message": message,
-            "movie": parsed.get("movie", ""),
-            "zipcode": parsed.get("zipcode", ""),
-            "session_id": session_id,
-            "response": parsed.get("response", "")[:200] if action in ("chat", "need_zipcode") else "",
-        })
+        # Log non-search interactions here (searches log when they complete with full results)
+        if action != "search":
+            await log_search({
+                "type": action,
+                "message": message,
+                "movie": parsed.get("movie", ""),
+                "zipcode": parsed.get("zipcode", ""),
+                "session_id": session_id,
+                "response": parsed.get("response", "")[:200] if action in ("chat", "need_zipcode") else "",
+            })
 
         if action == "chat":
             yield _sse("chat_response", parsed.get("response", ""))
