@@ -376,7 +376,9 @@ User prefers: format={format_pref}
 
 Return JSON with two fields:
 1. "ranking": array of numbers (1-indexed) in order from best to worst. Consider: seat quality (score), theater format (IMAX>XD>Standard), price, availability (less crowded = better), showtime convenience.
-2. "recommendation": 2-3 casual sentences about the top pick and one to avoid. Mention specific seats. Be like a friend texting advice.
+2. "recommendation": 2-3 casual sentences about the top pick. Mention specific seats. Be like a friend texting advice.
+
+IMPORTANT: If the best available seats are in Row A or B (front rows), mention that most seats are sold out for that showtime and these are the best remaining options. Explain that front rows mean sitting close to the screen. If a showtime has 0 available seats, say it's sold out. If availability is below 20%, warn it's filling up fast.
 
 Example: {{"ranking": [3,1,5,2,4], "recommendation": "Grab E4-E5 at Allen XD 7:50 PM — perfect row depth..."}}"""}],
         )

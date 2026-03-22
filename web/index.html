@@ -427,7 +427,7 @@
                             <div class="theater-name">${isTop ? '&#9733; ' : ''}${r.theater}</div>
                             <div class="showtime">${r.date ? r.date + ' &middot; ' : ''}${r.time} &middot; ${r.format}${priceStr ? ' &middot; ' + priceStr : ''}</div>
                             <div class="availability" style="color: ${availColor}">${r.available}/${r.total} seats available</div>
-                            ${r.url ? `<a class="buy-link" href="${r.url}" target="_blank" onclick="if(window.firebaseLogEvent)firebaseLogEvent('buy_click',{theater:'${r.theater.replace(/'/g,'')}',time:'${r.time}',seats:'${best.labels}'})">${isTop ? 'Buy Tickets &rarr;' : 'Select Seats &rarr;'}</a>` : ''}
+                            ${r.url ? `<a class="buy-link" href="${r.url}" target="_blank" onclick="if(window.firebaseLogEvent)firebaseLogEvent('buy_click',{theater:'${r.theater.replace(/'/g,'')}',time:'${r.time}',seats:'${best.labels}'})">Select Seats &rarr;</a>` : ''}
                             ${isTop ? `<div class="seat-hint">On Cinemark's page, look for Row ${best.labels.charAt(0)}, seats ${best.labels.replace(/[A-Z]/g, '').replace(/, /g, ' and ')}</div>` : ''}
                         </div>
                         <div class="seat-info">
