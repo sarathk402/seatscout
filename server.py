@@ -23,6 +23,26 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Firestore for search logging
+try:
+    from google.cloud import firestore
+    db = firestore.AsyncClient(project="movieseats-app")
+    logger.info("Firestore connected")
+except Exception as e:
+    db = None
+    logger.warning("Firestore not available (running locally?): %s", str(e)[:50])
+
+
+async def log_search(data: dict):
+    """Log a search event to Firestore."""
+    if not db:
+        return
+    try:
+        data["timestamp"] = firestore.SERVER_TIMESTAMP
+        await db.collection("searches").add(data)
+    except Exception as e:
+        logger.warning("Firestore log failed: %s", str(e)[:50])
+
 # In-memory session store (simple — one user at a time)
 sessions: dict[str, dict] = {}
 
@@ -99,6 +119,13 @@ async def chat(request: Request):
             yield _sse("chat_response", response_text)
 
             session["history"].append({"role": "assistant", "content": f"Found {len(movies)} movies. {response_text}"})
+
+            await log_search({
+                "type": "browse",
+                "zipcode": zipcode,
+                "movies_found": len(movies),
+                "message": message,
+            })
             return
 
         if action == "search":
@@ -220,6 +247,25 @@ async def chat(request: Request):
             yield _sse("done", json.dumps({"elapsed": round(elapsed, 1)}))
 
             session["history"].append({"role": "assistant", "content": f"Found {len(all_results)} showtimes. {ai_text}"})
+
+            # Log to Firestore
+            best = all_results[0] if all_results else {}
+            best_seats = best.get("seats", [{}])[0] if best.get("seats") else {}
+            await log_search({
+                "type": "search",
+                "movie": movie,
+                "zipcode": zipcode,
+                "date": date,
+                "time_pref": time_pref,
+                "format_pref": format_pref,
+                "num_seats": num_seats,
+                "theaters_found": len(seat_data),
+                "best_theater": best.get("theater", ""),
+                "best_seats": best_seats.get("labels", ""),
+                "best_score": best_seats.get("score", 0),
+                "elapsed": round(elapsed, 1),
+                "message": message,
+            })
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 
