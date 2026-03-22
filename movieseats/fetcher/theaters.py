@@ -56,26 +56,65 @@ async def find_theaters_and_showtimes(
         await page.goto(f"{CINEMARK_BASE}/movies", wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(1500)
 
-        movie_slug = await page.evaluate("""(name) => {
+        movie_slug = await page.evaluate(r"""(name) => {
             const links = document.querySelectorAll('a[href*="/movies/"]');
-            const nameLower = name.toLowerCase();
-            const words = nameLower.split(/\\s+/);
-            for (const link of links) {
-                const text = link.innerText.toLowerCase();
-                if (text.includes(nameLower)) {
-                    const match = link.href.match(/\\/movies\\/([^/?]+)/);
-                    if (match) return match[1];
+            const nameLower = name.toLowerCase().trim();
+            const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+            const skip = ['movies', 'book-now', ''];
+
+            // Helper: simple similarity score (0-1)
+            function similarity(a, b) {
+                a = a.toLowerCase(); b = b.toLowerCase();
+                if (a === b) return 1;
+                if (a.includes(b) || b.includes(a)) return 0.9;
+                // Count matching characters
+                let matches = 0;
+                const shorter = a.length < b.length ? a : b;
+                const longer = a.length < b.length ? b : a;
+                for (let i = 0; i < shorter.length; i++) {
+                    if (longer.includes(shorter[i])) matches++;
                 }
+                return matches / longer.length;
             }
-            for (const link of links) {
-                const text = link.innerText.toLowerCase();
+
+            // Collect all movie slugs with their text
+            const movies = [];
+            const seen = new Set();
+            links.forEach(link => {
+                const match = link.href.match(/\/movies\/([^/?]+)/);
+                if (!match || skip.includes(match[1]) || seen.has(match[1])) return;
+                seen.add(match[1]);
+                const text = link.innerText.toLowerCase().trim();
+                const slug = match[1];
+                movies.push({ slug, text, href: slug.replace(/-/g, ' ') });
+            });
+
+            // Pass 1: Exact substring match
+            for (const m of movies) {
+                if (m.text.includes(nameLower) || m.href.includes(nameLower)) return m.slug;
+            }
+
+            // Pass 2: Word match — any word > 3 chars matches text or slug
+            for (const m of movies) {
                 for (const word of words) {
-                    if (word.length > 3 && text.includes(word)) {
-                        const match = link.href.match(/\\/movies\\/([^/?]+)/);
-                        if (match) return match[1];
-                    }
+                    if (word.length > 3 && (m.text.includes(word) || m.href.includes(word))) return m.slug;
                 }
             }
+
+            // Pass 3: Fuzzy match — find best similarity score
+            let bestSlug = null, bestScore = 0;
+            for (const m of movies) {
+                const s1 = similarity(nameLower, m.text);
+                const s2 = similarity(nameLower, m.href);
+                const score = Math.max(s1, s2);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestSlug = m.slug;
+                }
+            }
+            // Accept if similarity > 50%
+            if (bestScore > 0.5) return bestSlug;
+
             return null;
         }""", movie_name)
 
