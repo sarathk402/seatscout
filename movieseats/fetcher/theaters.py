@@ -128,22 +128,47 @@ async def find_theaters_and_showtimes(
         await page.goto(f"{CINEMARK_BASE}/movies/{movie_slug}", wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(1500)
 
-        # Step 3: Enter zipcode
-        try:
-            await page.get_by_text("ZIP Code").first.click(timeout=3000)
-            await page.wait_for_timeout(300)
-        except Exception:
-            pass
+        # Step 3: Enter zipcode — try multiple methods
+        zip_entered = False
 
-        zip_input = page.locator('input[type="tel"]')
-        if await zip_input.count() > 0:
-            await zip_input.first.click()
-            await zip_input.first.fill(zipcode)
-            await zip_input.first.press("Enter")
-            await page.wait_for_timeout(2500)
-        else:
-            logger.error("Could not find zipcode input")
+        # Method 1: Click "ZIP Code" link then fill tel input
+        for click_text in ["ZIP Code", "Find showtimes near a ZIP Code", "Location"]:
+            try:
+                await page.get_by_text(click_text).first.click(timeout=2000)
+                await page.wait_for_timeout(300)
+                break
+            except Exception:
+                continue
+
+        # Method 2: Find and fill any visible input
+        for selector in ['input[type="tel"]', 'input[placeholder*="zip" i]', 'input[placeholder*="ZIP"]', 'input[type="text"]:visible']:
+            try:
+                inp = page.locator(selector)
+                if await inp.count() > 0:
+                    await inp.first.click(timeout=2000)
+                    await inp.first.fill(zipcode)
+                    await inp.first.press("Enter")
+                    zip_entered = True
+                    logger.info("Zipcode entered via %s", selector)
+                    break
+            except Exception:
+                continue
+
+        if not zip_entered:
+            logger.error("Could not enter zipcode %s", zipcode)
             return []
+
+        # Wait for showtimes to load after zipcode entry
+        try:
+            await page.wait_for_selector('a[href*="TicketSeatMap"]', timeout=8000)
+        except Exception:
+            await page.wait_for_timeout(3000)
+
+        # Verify we got theaters near the right zipcode (check page text)
+        page_text = await page.inner_text("body")
+        if "No showtimes" in page_text or len(page_text) < 500:
+            logger.warning("No showtimes found after zipcode entry, retrying...")
+            await page.wait_for_timeout(2000)
 
         # Step 4: Select date if specified
         if date_text:
