@@ -30,6 +30,8 @@ app.add_middleware(
     allow_origins=[
         "https://movieseats-app.web.app",
         "https://movieseats-app.firebaseapp.com",
+        "https://movieseats.org",
+        "https://www.movieseats.org",
         "http://localhost:8000",
         "http://localhost:5000",
     ],
