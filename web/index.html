@@ -365,6 +365,11 @@
         let isSearching = false;
         const sessionId = 'session_' + Math.random().toString(36).slice(2);
 
+        // API backend URL — Cloud Run for production, localhost for dev
+        const API_URL = window.location.hostname === 'localhost'
+            ? ''
+            : 'https://movieseats-516464050812.us-central1.run.app';
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 if (isSearching) {
@@ -446,7 +451,7 @@
             if (window.firebaseLogEvent) window.firebaseLogEvent('search_started', { query: text });
 
             try {
-                const response = await fetch('/api/chat', {
+                const response = await fetch(API_URL + '/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: text, session_id: sessionId }),
