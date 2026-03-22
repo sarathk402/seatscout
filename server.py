@@ -11,6 +11,7 @@ from pathlib import Path
 import anthropic
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
@@ -22,6 +23,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# CORS — allow Firebase Hosting to call Cloud Run API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://movieseats-app.web.app",
+        "https://movieseats-app.firebaseapp.com",
+        "http://localhost:8000",
+        "http://localhost:5000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
 # Firestore
