@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MovieSeats</title>
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCoroubTmusBaBXuEM9V7pOtmiWQ1rPd9Q",
+            authDomain: "movieseats-app.firebaseapp.com",
+            projectId: "movieseats-app",
+            storageBucket: "movieseats-app.firebasestorage.app",
+            messagingSenderId: "516464050812",
+            appId: "1:516464050812:web:28ba95f2e6aa67e00a7ff9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+
+        // Make logEvent available globally
+        window.firebaseLogEvent = (name, params) => logEvent(analytics, name, params || {});
+
+        // Log page view
+        logEvent(analytics, 'page_view');
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -360,6 +383,9 @@
         }
 
         function pickMovie(el) {
+            if (window.firebaseLogEvent) {
+                firebaseLogEvent('movie_picked', { movie: el.textContent });
+            }
             input.value = el.textContent;
             sendMessage();
         }
@@ -401,7 +427,7 @@
                             <div class="theater-name">${isTop ? '&#9733; ' : ''}${r.theater}</div>
                             <div class="showtime">${r.time} &middot; ${r.format}${priceStr ? ' &middot; ' + priceStr : ''}</div>
                             <div class="availability" style="color: ${availColor}">${r.available}/${r.total} seats available</div>
-                            ${r.url ? `<a class="buy-link" href="${r.url}" target="_blank">${isTop ? 'Buy Tickets &rarr;' : 'Select Seats &rarr;'}</a>` : ''}
+                            ${r.url ? `<a class="buy-link" href="${r.url}" target="_blank" onclick="if(window.firebaseLogEvent)firebaseLogEvent('buy_click',{theater:'${r.theater.replace(/'/g,'')}',time:'${r.time}',seats:'${best.labels}'})">${isTop ? 'Buy Tickets &rarr;' : 'Select Seats &rarr;'}</a>` : ''}
                             ${isTop ? `<div class="seat-hint">On Cinemark's page, look for Row ${best.labels.charAt(0)}, seats ${best.labels.replace(/[A-Z]/g, '').replace(/, /g, ' and ')}</div>` : ''}
                         </div>
                         <div class="seat-info">
@@ -424,6 +450,11 @@
             input.value = '';
 
             addMessage('user', text);
+
+            // Log search event to Firebase
+            if (window.firebaseLogEvent) {
+                window.firebaseLogEvent('search_started', { query: text });
+            }
 
             try {
                 const response = await fetch('/api/chat', {
@@ -471,6 +502,13 @@
                             } else if (event === 'parsed') {
                                 const p = JSON.parse(data);
                                 addMessage('status', `Searching: ${p.movie} near ${p.zipcode} &middot; ${p.time_pref} &middot; ${p.seats} seats`);
+                                if (window.firebaseLogEvent) {
+                                    window.firebaseLogEvent('search_parsed', {
+                                        movie: p.movie, zipcode: p.zipcode,
+                                        time_pref: p.time_pref, seats: p.seats,
+                                        date: p.date || 'today',
+                                    });
+                                }
                             } else if (event === 'results') {
                                 const results = JSON.parse(data);
                                 // Remove status messages
@@ -491,6 +529,10 @@
                             } else if (event === 'done') {
                                 // Clean up any remaining status messages
                                 chat.querySelectorAll('.message.status').forEach(el => el.remove());
+                                const d = JSON.parse(data);
+                                if (window.firebaseLogEvent) {
+                                    window.firebaseLogEvent('search_completed', { elapsed: d.elapsed });
+                                }
                                 const d = JSON.parse(data);
                                 const elapsed = document.createElement('div');
                                 elapsed.className = 'elapsed';
