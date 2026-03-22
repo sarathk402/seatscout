@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
-from movieseats.fetcher.browse import browse_movies_near
+# from movieseats.fetcher.browse import browse_movies_near  # disabled for now
 from movieseats.seats.scorer import find_best_seats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -101,29 +101,13 @@ async def chat(request: Request):
             session["history"].append({"role": "assistant", "content": parsed["response"]})
             return
 
+        # Browse feature disabled for now — movie list includes coming soon / past movies
+        # if action == "browse":
+        #     ...
         if action == "browse":
-            zipcode = parsed.get("zipcode", "")
-            if not zipcode:
-                yield _sse("chat_response", "What's your zipcode? I need it to find movies near you.")
-                return
-            yield _sse("status", f"Checking what's playing near {zipcode}...")
+            yield _sse("chat_response", "Tell me the movie name and your zipcode or city, and I'll find the best seats for you!")
             session["history"].append({"role": "user", "content": message})
-            session["last_search"] = parsed
-
-            from playwright.async_api import async_playwright
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(viewport={"width": 1366, "height": 768},
-                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
-                movies = await browse_movies_near(context, zipcode)
-                await browser.close()
-
-            if not movies:
-                yield _sse("error", f"Couldn't find movies near {zipcode}.")
-                return
-            yield _sse("movies", json.dumps(movies))
-            yield _sse("chat_response", f"Here are the movies playing near {zipcode}. Which one do you want to see?")
-            await log_search({"type": "browse", "zipcode": zipcode, "movies_found": len(movies), "message": message})
+            session["history"].append({"role": "assistant", "content": "Tell me the movie name and your zipcode or city, and I'll find the best seats for you!"})
             return
 
         if action == "search":
@@ -290,7 +274,7 @@ INTENT_SYSTEM = """You parse user messages for a movie seat finder app. Today is
 
 Return JSON only. Rules:
 - If user wants to find seats for a movie: {{"action":"search","movie":"movie name AS TYPED","zipcode":"5-digit zip","location_name":"city/area name if given","date":"day number or empty","time_pref":"morning|afternoon|evening|all","seats":2,"format_pref":"any|imax|xd|standard|cheapest"}}
-- If user wants to browse movies: {{"action":"browse","zipcode":"zip"}}
+- If user asks "what's playing" or wants to browse movies, respond with chat: {{"action":"chat","response":"Tell me the movie name and your zipcode or city, and I'll find the best seats for you!"}}
 - If no location at all (no zipcode, no city, no area): {{"action":"need_zipcode","response":"friendly message asking for zipcode or city","movie":"movie name"}}
 - If just chatting: {{"action":"chat","response":"helpful response"}}
 - "tomorrow" = day {tomorrow_day}, "today" = day {today_day}
