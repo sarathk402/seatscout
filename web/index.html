@@ -529,14 +529,13 @@
                             } else if (event === 'done') {
                                 // Clean up any remaining status messages
                                 chat.querySelectorAll('.message.status').forEach(el => el.remove());
-                                const d = JSON.parse(data);
+                                const doneData = JSON.parse(data);
                                 if (window.firebaseLogEvent) {
-                                    window.firebaseLogEvent('search_completed', { elapsed: d.elapsed });
+                                    window.firebaseLogEvent('search_completed', { elapsed: doneData.elapsed });
                                 }
-                                const d = JSON.parse(data);
                                 const elapsed = document.createElement('div');
                                 elapsed.className = 'elapsed';
-                                elapsed.textContent = `Completed in ${d.elapsed}s`;
+                                elapsed.textContent = `Completed in ${doneData.elapsed}s`;
                                 if (resultContainer) {
                                     resultContainer.appendChild(elapsed);
                                 }
