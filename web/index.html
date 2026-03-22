@@ -134,10 +134,11 @@
             background: #f7f7f7;
             border: 1px solid #eee;
             border-radius: 10px;
-            padding: 14px 18px;
+            padding: 14px 16px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 12px;
         }
 
         .seat-card.top-pick {
@@ -147,11 +148,15 @@
 
         .seat-card .theater-info {
             flex: 1;
+            min-width: 0;
         }
 
         .seat-card .theater-name {
             font-weight: 600;
             font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .seat-card .showtime {
@@ -162,6 +167,8 @@
 
         .seat-card .seat-info {
             text-align: right;
+            flex-shrink: 0;
+            min-width: 70px;
         }
 
         .seat-card .seat-numbers {
@@ -171,7 +178,7 @@
         }
 
         .seat-card .seat-score {
-            font-size: 12px;
+            font-size: 11px;
             color: #888;
             margin-top: 2px;
         }
@@ -315,6 +322,63 @@
             font-size: 12px;
             color: #aaa;
             margin-top: 8px;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            header { padding: 14px 16px; }
+            header h1 { font-size: 18px; }
+
+            .chat-container { padding: 12px; gap: 12px; }
+
+            .message { max-width: 100%; font-size: 14px; }
+            .message.user { padding: 10px 14px; }
+            .message.assistant { padding: 12px 14px; }
+
+            .seat-card {
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px 14px;
+            }
+
+            .seat-card .theater-name {
+                white-space: normal;
+                font-size: 15px;
+            }
+
+            .seat-card .seat-info {
+                text-align: left;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .seat-card .seat-numbers {
+                font-size: 18px;
+            }
+
+            .seat-card .seat-score {
+                font-size: 12px;
+            }
+
+            .seat-card .seat-hint {
+                font-size: 11px;
+            }
+
+            .input-area { padding: 10px 12px; }
+            .input-row input { padding: 10px 14px; font-size: 14px; }
+            .input-row button { padding: 10px 18px; font-size: 13px; }
+
+            .examples { font-size: 11px; }
+
+            .recommendation { padding: 12px 14px; font-size: 13px; }
+
+            .welcome { padding: 40px 16px; }
+            .welcome h2 { font-size: 20px; }
+            .welcome p { font-size: 14px; }
+
+            .movie-list { gap: 6px; }
+            .movie-chip { padding: 6px 12px; font-size: 12px; }
         }
 
         .movie-list {
