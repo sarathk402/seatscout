@@ -131,11 +131,19 @@ async def chat(request: Request):
             return
 
         if action == "info":
-            # Use web search to answer questions about movies, theaters, genres, actors, etc.
-            yield _sse("status", "Looking that up...")
             query = parsed.get("query", message)
+            query_lower = query.lower()
             zipcode = parsed.get("zipcode", "")
             location = parsed.get("location_name", "")
+
+            # Redirect "what's playing" type questions to seat finding
+            if any(phrase in query_lower for phrase in ["what's playing", "whats playing", "what is playing", "movies near", "what movies", "what's showing", "whats showing"]):
+                yield _sse("chat_response", "I can find the best seats for any movie! Just tell me the movie name and your zipcode or city. For example: \"Dhurandhar 75035\" or \"Hoppers in Irvine\"")
+                session["history"].append({"role": "user", "content": message})
+                session["history"].append({"role": "assistant", "content": "Tell me the movie name and location to find seats."})
+                return
+
+            yield _sse("status", "Looking that up...")
 
             try:
                 response = await client.messages.create(
