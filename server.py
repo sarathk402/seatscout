@@ -85,7 +85,7 @@ async def chat(request: Request):
         # Step 1: Parse intent with Haiku (cheap, fast)
         parsed = await _parse_intent(message, session)
         if not parsed:
-            yield _sse("error", "I couldn't understand that. Try: \"Dhurandhar tomorrow evening near 75035, 2 tickets\"")
+            yield _sse("chat_response", "Tell me the movie name and your zipcode or city, and I'll find the best seats for you! For example: \"Dhurandhar 75035\" or \"Hoppers in Irvine\"")
             return
 
         action = parsed.get("action", "search")
@@ -188,7 +188,9 @@ async def chat(request: Request):
                 )
 
                 if not theaters:
-                    yield _sse("error", f"No Cinemark theaters found showing {correct_movie} near {zipcode}. The movie might not be playing at Cinemark theaters in your area.")
+                    yield _sse("chat_response", f"I couldn't find {correct_movie} at Cinemark theaters near {location_display}. This could mean the movie isn't playing at Cinemark in your area, or showtimes haven't been posted yet. Try a nearby zipcode or check back later!")
+                    session["history"].append({"role": "user", "content": message})
+                    session["history"].append({"role": "assistant", "content": f"No Cinemark theaters found showing {correct_movie} near {location_display}."})
                     await browser.close()
                     return
 
@@ -288,6 +290,7 @@ INTENT_SYSTEM = """You parse user messages for a movie seat finder app. Today is
 Return JSON only. Rules:
 - If user wants to find seats for a movie: {{"action":"search","movie":"movie name AS TYPED","zipcode":"5-digit zip","location_name":"city/area name if given","date":"day number or empty","time_pref":"morning|afternoon|evening|all","seats":2,"format_pref":"any|imax|xd|standard|cheapest"}}
 - If user asks "what's playing" or wants to browse movies, respond with chat: {{"action":"chat","response":"Tell me the movie name and your zipcode or city, and I'll find the best seats for you!"}}
+- If user types just a movie name with no location: {{"action":"need_zipcode","response":"I'd love to find seats for [movie]! What's your zipcode or city?","movie":"movie name"}}
 - If no location at all (no zipcode, no city, no area): {{"action":"need_zipcode","response":"friendly message asking for zipcode or city","movie":"movie name"}}
 - If just chatting: {{"action":"chat","response":"helpful response"}}
 - "tomorrow" = day {tomorrow_day}, "today" = day {today_day}
