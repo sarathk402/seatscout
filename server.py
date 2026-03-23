@@ -17,7 +17,7 @@ from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
-from movieseats.fetcher.india import discover_india_showtimes, fetch_india_seats_http, INDIA_CITIES
+from movieseats.fetcher.india import discover_india_showtimes, fetch_india_seats_browser, INDIA_CITIES
 from movieseats.seats.scorer import find_best_seats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -271,7 +271,7 @@ Question: {query}"""}],
                     india_city = location_name or "hyderabad"
                     india_movie = movie_raw
 
-                    india_sessions, content_id = await discover_india_showtimes(context, india_city, india_movie)
+                    india_sessions, content_id, india_movie_url = await discover_india_showtimes(context, india_city, india_movie)
 
                     if not india_sessions:
                         yield _sse("chat_response", f"I couldn't find {india_movie} in theaters near {india_city.title()}. The movie might not be playing in your city yet, or try a different city name.")
@@ -288,13 +288,11 @@ Question: {query}"""}],
                             count = sum(1 for x in india_sessions if x.cinema_name == s.cinema_name)
                             yield _sse("theater_progress", json.dumps({"name": s.cinema_name, "showtimes": count}))
 
-                    yield _sse("status", f"Checking seats across {len(india_sessions)} showtimes via API...")
+                    yield _sse("status", f"Checking seats across {len(india_sessions)} showtimes...")
 
-                    # Close browser — we don't need it for seat API calls!
+                    # Fetch seat maps via parallel browser tabs (captures seat API JSON)
+                    seat_data = await fetch_india_seats_browser(context, india_sessions, india_movie_url)
                     await browser.close()
-
-                    # Fetch seat maps via direct HTTP (no Playwright!)
-                    seat_data = await fetch_india_seats_http(india_sessions)
 
                 else:
                     # --- US PATH (Cinemark) ---
