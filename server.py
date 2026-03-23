@@ -17,7 +17,7 @@ from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
-from movieseats.fetcher.india import find_india_theaters, fetch_india_seat_map, INDIA_CITIES
+from movieseats.fetcher.india import discover_india_showtimes, fetch_india_seats_http, INDIA_CITIES
 from movieseats.seats.scorer import find_best_seats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -267,41 +267,34 @@ Question: {query}"""}],
                 seat_data = []
 
                 if country == "india":
-                    # --- INDIA PATH (District.in) ---
+                    # --- INDIA PATH (District.in) — optimized: __NEXT_DATA__ + HTTP API ---
                     india_city = location_name or "hyderabad"
-                    # Use raw movie name for India — District.in has its own naming
                     india_movie = movie_raw
-                    india_results = await find_india_theaters(context, india_city, india_movie)
 
-                    if not india_results:
+                    india_sessions, content_id = await discover_india_showtimes(context, india_city, india_movie)
+
+                    if not india_sessions:
                         yield _sse("chat_response", f"I couldn't find {india_movie} in theaters near {india_city.title()}. The movie might not be playing in your city yet, or try a different city name.")
                         session["history"].append({"role": "user", "content": message})
                         session["history"].append({"role": "assistant", "content": f"No theaters found showing {india_movie} near {india_city}."})
                         await browser.close()
                         return
 
-                    total_st = sum(len(sts) for _, sts in india_results)
+                    # Stream theater progress
+                    seen_theaters = set()
+                    for s in india_sessions:
+                        if s.cinema_name not in seen_theaters:
+                            seen_theaters.add(s.cinema_name)
+                            count = sum(1 for x in india_sessions if x.cinema_name == s.cinema_name)
+                            yield _sse("theater_progress", json.dumps({"name": s.cinema_name, "showtimes": count}))
 
-                    for theater_name, showtimes in india_results:
-                        yield _sse("theater_progress", json.dumps({"name": theater_name, "showtimes": len(showtimes)}))
+                    yield _sse("status", f"Checking seats across {len(india_sessions)} showtimes via API...")
 
-                    yield _sse("status", f"Checking seats across {total_st} showtimes...")
+                    # Close browser — we don't need it for seat API calls!
+                    await browser.close()
 
-                    # Fetch seat maps in parallel (max 6 at a time)
-                    all_showtimes = [(st, india_movie, india_city) for _, sts in india_results for st in sts]
-                    semaphore = asyncio.Semaphore(6)
-
-                    async def fetch_one_india(st, movie, city):
-                        async with semaphore:
-                            return await fetch_india_seat_map(context, st, movie, city)
-
-                    results_list = await asyncio.gather(
-                        *[fetch_one_india(st, m, c) for st, m, c in all_showtimes],
-                        return_exceptions=True,
-                    )
-                    for r in results_list:
-                        if isinstance(r, tuple):
-                            seat_data.append(r)
+                    # Fetch seat maps via direct HTTP (no Playwright!)
+                    seat_data = await fetch_india_seats_http(india_sessions)
 
                 else:
                     # --- US PATH (Cinemark) ---
@@ -329,8 +322,7 @@ Question: {query}"""}],
                     yield _sse("status", f"Checking seats across {total_st} showtimes...")
 
                     seat_data = await fetch_all_seat_maps(theaters, context)
-
-                await browser.close()
+                    await browser.close()
 
             if not seat_data:
                 yield _sse("error", "Could not load seat maps. Please try again.")
