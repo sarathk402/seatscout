@@ -54,6 +54,7 @@ class IndiaCinemaSession:
     seats_available: int
     seats_total: int
     price: float
+    cookies: str = ""  # browser cookies for seat API auth
 
 
 async def discover_india_showtimes(
@@ -69,12 +70,13 @@ async def discover_india_showtimes(
     page = await context.new_page()
     sessions: list[IndiaCinemaSession] = []
     content_id = ""
+    movie_url = ""
 
     try:
         city_slug = INDIA_CITIES.get(city.lower().strip(), city.lower().strip().replace(" ", "-"))
 
         # Step 1: Find movie URL from /movies page
-        await page.goto(f"{DISTRICT_BASE}/movies", wait_until="networkidle", timeout=15000)
+        await page.goto(f"{DISTRICT_BASE}/movies", wait_until="domcontentloaded", timeout=30000)
         await page.wait_for_timeout(2000)
 
         movie_path = await page.evaluate(r"""(params) => {
@@ -114,141 +116,95 @@ async def discover_india_showtimes(
             logger.error("Movie not found on District.in: %s in %s", movie_name, city)
             return [], ""
 
-        # Step 2: Load movie page and extract __NEXT_DATA__
+        # Step 2: Load movie page
         movie_url = f"{DISTRICT_BASE}/movies/{movie_path}"
         logger.info("Loading: %s", movie_url)
-        await page.goto(movie_url, wait_until="networkidle", timeout=20000)
+        await page.goto(movie_url, wait_until="domcontentloaded", timeout=30000)
         await page.wait_for_timeout(2000)
 
-        next_data = await page.evaluate("""() => {
-            const el = document.getElementById('__NEXT_DATA__');
-            return el ? JSON.parse(el.textContent) : null;
-        }""")
+        # Step 3: Parse theaters + showtimes directly from page text
+        # (__NEXT_DATA__ is incomplete — late night shows loaded via XHR)
+        import re
+        page_text = await page.inner_text("body")
+        content_id = ""
 
-        if not next_data:
-            logger.error("No __NEXT_DATA__ on movie page")
-            return [], ""
+        # Extract content ID from __NEXT_DATA__ (still useful for this)
+        try:
+            next_data = await page.evaluate("""() => {
+                const el = document.getElementById('__NEXT_DATA__');
+                return el ? JSON.parse(el.textContent) : null;
+            }""")
+            if next_data:
+                content_id = next_data.get("props", {}).get("pageProps", {}).get("data", {}).get("contentId", "")
+        except Exception:
+            pass
 
-        # Step 3: Parse all theaters and showtimes
-        server_state = next_data.get("props", {}).get("pageProps", {}).get("data", {})
-        content_id = server_state.get("contentId", "")
-
-        movie_sessions = server_state.get("serverState", {}).get("movieSessions", {})
-        if not movie_sessions:
-            logger.error("No movieSessions in data")
-            return [], ""
-
-        # Get the first format group (usually Hindi)
-        format_key = list(movie_sessions.keys())[0]
-        arranged = movie_sessions[format_key].get("arrangedSessions", [])
-
-        # Get cinema names from meta
-        cinema_meta = movie_sessions[format_key].get("meta", {}).get("entityMetaData", {})
+        # Parse theaters and showtimes from page text
+        lines = [l.strip() for l in page_text.split("\n") if l.strip()]
+        current_theater = ""
+        current_distance = ""
 
         total_picked = 0
         theaters_picked = 0
+        theater_showtime_count: dict[str, int] = {}
 
-        for cinema in arranged:
+        for i, line in enumerate(lines):
             if theaters_picked >= MAX_THEATERS or total_picked >= MAX_TOTAL_SHOWTIMES:
                 break
 
-            c = cinema.get("data", {})
-            cinema_id = c.get("id", 0)
-            distance = c.get("distanceFromUser", 0)
-            cinema_name = ""  # Will get from page text
+            # Detect theater names
+            if re.match(r'.*(PVR|INOX|Cinepolis|Cinépolis|Miraj|Asian|Carnival|Roongta|Sree|Shiva)', line, re.IGNORECASE) and len(line) < 80:
+                current_theater = line
+                current_distance = ""
+                if i + 1 < len(lines) and re.search(r'\d+\.?\d*\s*km', lines[i + 1], re.IGNORECASE):
+                    current_distance = lines[i + 1]
+                if current_theater not in theater_showtime_count:
+                    theater_showtime_count[current_theater] = 0
 
-            cinema_sessions = cinema.get("sessions", [])
-            if not cinema_sessions:
-                continue
+            # Detect showtimes
+            time_match = re.match(r'^(\d{2}:\d{2}\s*[AP]M)$', line, re.IGNORECASE)
+            if time_match and current_theater:
+                if theater_showtime_count.get(current_theater, 0) >= 2:
+                    continue  # max 2 per theater
 
-            picked_for_theater = 0
-            for sess in cinema_sessions:
-                if total_picked >= MAX_TOTAL_SHOWTIMES or picked_for_theater >= 2:
-                    break
+                time_display = time_match.group(1)
 
-                sid = sess.get("sid", "")
-                pid = sess.get("pid", 0)
-                mid = sess.get("mid", "")
-                show_time = sess.get("showTime", "")
-
-                # Parse time display
-                time_display = ""
-                if "T" in show_time:
-                    time_part = show_time.split("T")[1]
-                    hour, minute = int(time_part.split(":")[0]), time_part.split(":")[1]
-                    ampm = "AM" if hour < 12 else "PM"
-                    dh = hour if hour <= 12 else hour - 12
-                    if dh == 0:
-                        dh = 12
-                    time_display = f"{dh}:{minute} {ampm}"
-
-                # Get availability from areas
-                total_avail = 0
-                total_seats = 0
-                price = 0
+                # Detect format
                 fmt = "Standard"
-                for area in sess.get("areas", []):
-                    total_avail += area.get("sAvail", 0)
-                    total_seats += area.get("sTotal", 0)
-                    if not price:
-                        price = area.get("price", 0) or 0
-                    label = area.get("label", "").lower()
-                    if "dolby" in label or "atmos" in label:
-                        fmt = "Dolby Atmos"
-                    elif "imax" in label:
-                        fmt = "IMAX"
-                    elif "4dx" in label:
-                        fmt = "4DX"
+                if i + 1 < len(lines):
+                    nxt = lines[i + 1]
+                    if "DOLBY" in nxt or "Atmos" in nxt: fmt = "Dolby Atmos"
+                    elif "IMAX" in nxt: fmt = "IMAX"
+                    elif "4DX" in nxt: fmt = "4DX"
+                    elif "3D" in nxt: fmt = "3D"
 
                 sessions.append(IndiaCinemaSession(
-                    cinema_id=cinema_id,
-                    session_id=str(sid),
-                    provider_id=pid,
-                    movie_code=mid,
+                    cinema_id=0,
+                    session_id="",
+                    provider_id=0,
+                    movie_code="",
                     content_id=content_id,
-                    cinema_name="",  # filled later
-                    show_time=show_time,
+                    cinema_name=current_theater,
+                    show_time="",
                     time_display=time_display,
                     format=fmt,
-                    distance_km=distance,
-                    seats_available=total_avail,
-                    seats_total=total_seats,
-                    price=float(price),
+                    distance_km=float(re.search(r'(\d+\.?\d*)', current_distance).group(1)) if current_distance and re.search(r'(\d+\.?\d*)', current_distance) else 0,
+                    seats_available=0,
+                    seats_total=0,
+                    price=0,
                 ))
 
+                theater_showtime_count[current_theater] = theater_showtime_count.get(current_theater, 0) + 1
+                if theater_showtime_count[current_theater] == 1:
+                    theaters_picked += 1
                 total_picked += 1
-                picked_for_theater += 1
 
-            if picked_for_theater > 0:
-                theaters_picked += 1
-
-        # Get cinema names from the page text
-        cinema_names = await page.evaluate(r"""() => {
-            const text = document.body.innerText;
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-            const names = {};
-            for (const line of lines) {
-                if (line.match(/(PVR|INOX|Cinepolis|Cinépolis|Miraj|Asian|Carnival|Roongta|Sree|Shiva|AMB |SPI |Fun |Gold )/i) && line.length < 80) {
-                    names[line] = true;
-                }
-            }
-            return Object.keys(names);
-        }""")
-
-        # Map cinema names to sessions by order
-        name_idx = 0
-        last_cid = None
-        for sess in sessions:
-            if sess.cinema_id != last_cid:
-                if name_idx < len(cinema_names):
-                    sess.cinema_name = cinema_names[name_idx]
-                    name_idx += 1
-                else:
-                    sess.cinema_name = f"Cinema {sess.cinema_id}"
-                last_cid = sess.cinema_id
-            else:
-                if name_idx > 0:
-                    sess.cinema_name = cinema_names[name_idx - 1]
+        # Get cookies from browser — needed for seat API auth
+        browser_cookies = await page.context.cookies()
+        cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in browser_cookies)
+        logger.info("Got %d cookies for seat API", len(browser_cookies))
+        for s in sessions:
+            s.cookies = cookie_str
 
         logger.info("Discovered %d showtimes across %d theaters in %s", len(sessions), theaters_picked, city)
 
@@ -257,48 +213,94 @@ async def discover_india_showtimes(
     finally:
         await page.close()
 
-    return sessions, content_id
+    return sessions, content_id, movie_url
 
 
-async def fetch_india_seats_http(
+async def fetch_india_seats_browser(
+    context: BrowserContext,
     sessions: list[IndiaCinemaSession],
+    movie_url: str,
 ) -> list[tuple[Showtime, SeatMap]]:
-    """Fetch seat maps via direct HTTP API calls (no Playwright needed!).
+    """Fetch seat maps by clicking showtimes in parallel browser tabs.
 
-    Calls District.in's seat API in parallel for each session.
+    Uses Playwright to click each showtime and capture the seat API JSON response.
+    Runs 4 tabs in parallel for speed.
     """
     results: list[tuple[Showtime, SeatMap]] = []
-    semaphore = asyncio.Semaphore(6)
+    semaphore = asyncio.Semaphore(4)
 
     async def fetch_one(sess: IndiaCinemaSession) -> tuple[Showtime, SeatMap] | None:
         async with semaphore:
-            payload = {
-                "cinemaId": sess.cinema_id,
-                "sessionId": sess.session_id,
-                "providerId": sess.provider_id,
-                "screenOnTop": True,
-                "freeSeating": False,
-                "screenFormat": "2D",
-                "moviecode": sess.movie_code,
-                "contentId": sess.content_id,
-                "config": {"socialDistancing": 1},
-            }
+            page = await context.new_page()
+            seat_json = [None]
+
+            async def on_response(response):
+                if "select-seat" in response.url:
+                    ct = response.headers.get("content-type", "")
+                    if "json" in ct:
+                        try:
+                            seat_json[0] = await response.json()
+                        except Exception:
+                            pass
+
+            async def on_any_response(response):
+                url = response.url
+                if "select-seat" in url:
+                    ct = response.headers.get("content-type", "")
+                    if "json" in ct and not seat_json[0]:  # only capture FIRST response
+                        try:
+                            data = await response.json()
+                            if data.get("seatLayout"):  # only keep if has seat data
+                                seat_json[0] = data
+                                logger.info("Captured seat API for %s", sess.cinema_name)
+                        except Exception:
+                            pass
+
+            page.on("response", on_any_response)
 
             try:
-                async with aiohttp.ClientSession() as http:
-                    async with http.post(
-                        SEAT_API,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                        timeout=aiohttp.ClientTimeout(total=10),
-                    ) as resp:
-                        if resp.status != 200:
-                            logger.warning("Seat API %d for %s", resp.status, sess.cinema_name)
-                            return None
-                        data = await resp.json()
+                # Load movie page
+                await page.goto(movie_url, wait_until="domcontentloaded", timeout=30000)
+                await page.wait_for_timeout(1500)
 
+                # Remove overlay
+                try:
+                    await page.evaluate('document.querySelector(".BottomSheet_container__4XCDW")?.remove()')
+                except Exception:
+                    pass
+
+                # Click the specific showtime — use nth match to handle duplicates
+                try:
+                    locator = page.get_by_text(sess.time_display, exact=True)
+                    count = await locator.count()
+                    if count > 0:
+                        await locator.first.click(force=True, timeout=5000)
+                        logger.info("Clicked %s (found %d matches)", sess.time_display, count)
+                    else:
+                        logger.warning("No match for %s", sess.time_display)
+                        await page.close()
+                        return None
+                    await page.wait_for_timeout(5000)
+                except Exception as e:
+                    logger.warning("Click failed for %s: %s", sess.time_display, str(e)[:60])
+                    await page.close()
+                    return None
+
+                if not seat_json[0]:
+                    logger.warning("No seat JSON captured for %s %s (URL: %s)", sess.cinema_name, sess.time_display, page.url[:80])
+                    await page.close()
+                    return None
+
+                # Parse seat layout from JSON
+                data = seat_json[0]
                 seat_layout = data.get("seatLayout", {})
                 obj_areas = seat_layout.get("colAreas", {}).get("objArea", [])
+                total_rows_found = sum(len(a.get("objRow", [])) for a in obj_areas)
+                logger.info("Seat data for %s: %d areas, %d rows", sess.cinema_name, len(obj_areas), total_rows_found)
+                if obj_areas and not total_rows_found:
+                    # Log first area structure to debug
+                    first_area = obj_areas[0]
+                    logger.info("  Area keys: %s", list(first_area.keys())[:10])
 
                 rows_list: list[list[Seat]] = []
                 for area in obj_areas:
@@ -309,17 +311,25 @@ async def fetch_india_seats_http(
 
                         row_seats: list[Seat] = []
                         for seat_data in row_data.get("objSeat", []):
-                            seat_num = seat_data.get("SeatNum", 0)
+                            # District.in uses "seatNumber" or "SeatNum" or "GridSeatNum"
+                            seat_num = seat_data.get("seatNumber") or seat_data.get("SeatNum") or seat_data.get("GridSeatNum") or 0
                             if not seat_num:
                                 continue
-                            status_code = seat_data.get("SeatStatus", 1)
-                            status = "available" if status_code == 0 else "taken"
-                            row_seats.append(Seat(row=row_letter, number=seat_num, status=status))
+                            # SeatStatus is a STRING: "0"=available, "1"=sold
+                            status_str = str(seat_data.get("SeatStatus", "1"))
+                            status = "available" if status_str == "0" else "taken"
+                            row_seats.append(Seat(row=row_letter, number=int(seat_num), status=status))
 
                         if row_seats:
                             regular = [s for s in row_seats if s.status in ("available", "taken")]
                             if regular:
                                 rows_list.append(sorted(row_seats, key=lambda s: s.number))
+
+                await page.close()
+
+                total_seats = sum(len(r) for r in rows_list)
+                avail_seats = sum(1 for r in rows_list for s in r if s.status == "available")
+                logger.info("  Parsed %d rows, %d total seats, %d available for %s", len(rows_list), total_seats, avail_seats, sess.cinema_name)
 
                 if not rows_list:
                     return None
@@ -330,27 +340,40 @@ async def fetch_india_seats_http(
                     max_seats_per_row=max(len(r) for r in rows_list),
                 )
 
+                # Get price from API response
+                price = sess.price
+                try:
+                    ticket_types = data.get("ticketTypes", [])
+                    if ticket_types:
+                        price = float(ticket_types[0].get("price", sess.price))
+                except Exception:
+                    pass
+
                 showtime = Showtime(
                     time=sess.time_display,
                     date=sess.show_time.split("T")[0] if "T" in sess.show_time else "",
                     format=sess.format,
-                    price=sess.price,
+                    price=price,
                     theater_name=sess.cinema_name,
                     chain="district.in",
-                    url=f"{DISTRICT_BASE}/movies/seat-layout",
+                    url=movie_url,
                 )
 
                 total = sum(len(r) for r in rows_list)
                 avail = sum(1 for r in rows_list for s in r if s.status == "available")
-                logger.info("  %s %s: %d/%d available (HTTP)", sess.cinema_name, sess.time_display, avail, total)
+                logger.info("  %s %s: %d/%d available", sess.cinema_name, sess.time_display, avail, total)
 
                 return (showtime, seat_map)
 
             except Exception as e:
-                logger.warning("Seat API failed for %s: %s", sess.cinema_name, str(e)[:60])
+                logger.warning("India seat fetch failed for %s: %s", sess.cinema_name, str(e)[:60])
+                try:
+                    await page.close()
+                except Exception:
+                    pass
                 return None
 
-    # Fetch all in parallel
+    # Fetch all in parallel (4 tabs)
     tasks = [fetch_one(s) for s in sessions]
     results_raw = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -358,5 +381,5 @@ async def fetch_india_seats_http(
         if isinstance(r, tuple):
             results.append(r)
 
-    logger.info("Fetched %d/%d seat maps via HTTP", len(results), len(sessions))
+    logger.info("Fetched %d/%d seat maps via browser", len(results), len(sessions))
     return results
