@@ -2,6 +2,8 @@
 
 **Find the best available movie theater seats near you — powered by AI.**
 
+### [Try it live → movieseats.org](https://movieseats.org)
+
 MovieSeats is an open-source tool that scans real theater websites, checks seat availability in real-time, and recommends the best seats based on position, row depth, and format. It works through a simple chat interface — just type what you want to watch and where.
 
 ## How It Works
