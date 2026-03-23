@@ -70,24 +70,17 @@ async def find_india_theaters(
             logger.error("Movie not found on District.in: %s in %s", movie_name, city)
             return []
 
-        # Step 2: Go to movie page
-        url = f"{DISTRICT_BASE}/movies/{movie_slug}-in-{city_slug}-MV"
-        # Try the URL, if it fails try searching
-        await page.goto(f"{DISTRICT_BASE}/movies/{movie_slug}", wait_until="networkidle", timeout=20000)
+        # Step 2: Go to movie page — slug already contains city
+        movie_url = f"{DISTRICT_BASE}/movies/{movie_slug}"
+        logger.info("Loading: %s", movie_url)
+        await page.goto(movie_url, wait_until="networkidle", timeout=20000)
         await page.wait_for_timeout(2000)
 
-        # Check if we're on the right page
+        # Check if page loaded
         page_text = await page.inner_text("body")
-        if "Select Location" in page_text and len(page_text) < 500:
-            # Need to select city first
-            logger.info("Selecting city: %s", city_slug)
-            try:
-                city_btn = page.get_by_text(city.title(), exact=False)
-                if await city_btn.count() > 0:
-                    await city_btn.first.click(force=True, timeout=3000)
-                    await page.wait_for_timeout(2000)
-            except Exception:
-                pass
+        if "doesnt exist" in page_text or len(page_text) < 200:
+            logger.error("Movie page not found: %s", movie_url)
+            return []
 
         # Step 3: Extract all theaters and showtimes
         data = await page.evaluate(r"""() => {
@@ -184,36 +177,58 @@ async def find_india_theaters(
 
 
 async def _find_india_movie_slug(page: Page, movie_name: str, city_slug: str) -> str | None:
-    """Find movie slug on District.in."""
+    """Find movie URL on District.in for a specific city.
+
+    Goes to /movies page, finds the movie link that contains the city slug.
+    Returns the full path like 'dhurandhar-the-revenge-movie-tickets-in-hyderabad-MV211577'
+    """
     try:
-        await page.goto(f"{DISTRICT_BASE}/movies/{city_slug}", wait_until="networkidle", timeout=15000)
+        # Go to the main movies page — it lists all movies with city-specific links
+        await page.goto(f"{DISTRICT_BASE}/movies", wait_until="networkidle", timeout=15000)
         await page.wait_for_timeout(2000)
 
-        slug = await page.evaluate(r"""(name) => {
+        slug = await page.evaluate(r"""(params) => {
+            const name = params.name;
+            const city = params.city;
             const links = document.querySelectorAll('a[href*="/movies/"]');
             const nameLower = name.toLowerCase();
             const words = nameLower.split(/\s+/).filter(w => w.length > 2);
 
-            for (const link of links) {
+            // Collect all matching movie links
+            const matches = [];
+            links.forEach(link => {
                 const text = link.innerText.toLowerCase();
                 const href = link.href.toLowerCase();
-                if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) {
-                    const match = link.href.match(/\/movies\/([^?]+)/);
-                    if (match) return match[1];
+                const isMatch = text.includes(nameLower) || words.some(w => w.length > 3 && (text.includes(w) || href.includes(w)));
+                if (isMatch && href.includes('/movies/') && href.includes('ticket')) {
+                    const pathMatch = link.href.match(/\/movies\/([^?]+)/);
+                    if (pathMatch) matches.push({slug: pathMatch[1], href: link.href});
                 }
+            });
+
+            // Prefer the link with the target city
+            for (const m of matches) {
+                if (m.slug.includes('-in-' + city)) return m.slug;
             }
-            // Word match
-            for (const link of links) {
-                const text = (link.innerText + ' ' + link.href).toLowerCase();
-                for (const word of words) {
-                    if (word.length > 3 && text.includes(word)) {
-                        const match = link.href.match(/\/movies\/([^?]+)/);
-                        if (match && !match[1].includes('explore')) return match[1];
-                    }
+
+            // If no city-specific link, take the first match and replace city
+            if (matches.length > 0) {
+                const first = matches[0].slug;
+                // Replace existing city with target city
+                const cityMatch = first.match(/-in-([a-z-]+)-MV/);
+                if (cityMatch) {
+                    return first.replace('-in-' + cityMatch[1] + '-MV', '-in-' + city + '-MV');
                 }
+                // Add city if not present
+                const mvMatch = first.match(/-MV(\d+)$/);
+                if (mvMatch) {
+                    return first.replace('-MV' + mvMatch[1], '-in-' + city + '-MV' + mvMatch[1]);
+                }
+                return first;
             }
+
             return null;
-        }""", movie_name)
+        }""", {"name": movie_name, "city": city_slug})
 
         if slug:
             logger.info("Found India movie slug: %s", slug)
