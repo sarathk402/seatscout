@@ -226,16 +226,19 @@ Question: {query}"""}],
                 yield _sse("chat_response", "What movie are you looking for?")
                 return
 
-            # Step 2: Web search with Sonnet 4.6 to get correct movie name
+            # Step 2: Web search for correct movie name (US only — India uses raw name)
             location_display = location_name or zipcode
             yield _sse("status", f"Looking up {movie_raw} near {location_display}...")
 
-            movie_info = await _web_search_movie(movie_raw, zipcode)
-
-            correct_movie = movie_info.get("correct_name", movie_raw)
-            search_slug = movie_info.get("cinemark_search", movie_raw.lower().replace(" ", "-"))
-
-            logger.info("Web search: '%s' → '%s' (slug: %s)", movie_raw, correct_movie, search_slug)
+            if country == "india":
+                correct_movie = movie_raw
+                search_slug = movie_raw.lower().replace(" ", "-")
+                logger.info("India search: using raw name '%s'", movie_raw)
+            else:
+                movie_info = await _web_search_movie(movie_raw, zipcode)
+                correct_movie = movie_info.get("correct_name", movie_raw)
+                search_slug = movie_info.get("cinemark_search", movie_raw.lower().replace(" ", "-"))
+                logger.info("Web search: '%s' → '%s' (slug: %s)", movie_raw, correct_movie, search_slug)
 
             # Build display date
             display_date = "today"
@@ -266,12 +269,14 @@ Question: {query}"""}],
                 if country == "india":
                     # --- INDIA PATH (District.in) ---
                     india_city = location_name or "hyderabad"
-                    india_results = await find_india_theaters(context, india_city, correct_movie)
+                    # Use raw movie name for India — District.in has its own naming
+                    india_movie = movie_raw
+                    india_results = await find_india_theaters(context, india_city, india_movie)
 
                     if not india_results:
-                        yield _sse("chat_response", f"I couldn't find {correct_movie} in theaters near {india_city}. The movie might not be playing in your city yet, or try a different city name.")
+                        yield _sse("chat_response", f"I couldn't find {india_movie} in theaters near {india_city.title()}. The movie might not be playing in your city yet, or try a different city name.")
                         session["history"].append({"role": "user", "content": message})
-                        session["history"].append({"role": "assistant", "content": f"No theaters found showing {correct_movie} near {india_city}."})
+                        session["history"].append({"role": "assistant", "content": f"No theaters found showing {india_movie} near {india_city}."})
                         await browser.close()
                         return
 
@@ -284,7 +289,7 @@ Question: {query}"""}],
 
                     for theater_name, showtimes in india_results:
                         for st in showtimes:
-                            result = await fetch_india_seat_map(context, st, correct_movie, india_city)
+                            result = await fetch_india_seat_map(context, st, india_movie, india_city)
                             if result:
                                 seat_data.append(result)
 
