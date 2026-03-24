@@ -17,7 +17,7 @@ from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
-from movieseats.fetcher.india import discover_india_showtimes, fetch_india_seats_browser, INDIA_CITIES
+# India support available in private repo
 from movieseats.seats.scorer import find_best_seats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -267,32 +267,10 @@ Question: {query}"""}],
                 seat_data = []
 
                 if country == "india":
-                    # --- INDIA PATH (District.in) — optimized: __NEXT_DATA__ + HTTP API ---
-                    india_city = location_name or "hyderabad"
-                    india_movie = movie_raw
-
-                    india_sessions, content_id, india_movie_url = await discover_india_showtimes(context, india_city, india_movie)
-
-                    if not india_sessions:
-                        yield _sse("chat_response", f"I couldn't find {india_movie} in theaters near {india_city.title()}. The movie might not be playing in your city yet, or try a different city name.")
-                        session["history"].append({"role": "user", "content": message})
-                        session["history"].append({"role": "assistant", "content": f"No theaters found showing {india_movie} near {india_city}."})
-                        await browser.close()
-                        return
-
-                    # Stream theater progress
-                    seen_theaters = set()
-                    for s in india_sessions:
-                        if s.cinema_name not in seen_theaters:
-                            seen_theaters.add(s.cinema_name)
-                            count = sum(1 for x in india_sessions if x.cinema_name == s.cinema_name)
-                            yield _sse("theater_progress", json.dumps({"name": s.cinema_name, "showtimes": count}))
-
-                    yield _sse("status", f"Checking seats across {len(india_sessions)} showtimes...")
-
-                    # Fetch seat maps via parallel browser tabs (captures seat API JSON)
-                    seat_data = await fetch_india_seats_browser(context, india_sessions, india_movie_url)
+                    # India support coming soon
+                    yield _sse("chat_response", "India theater support is coming soon! Currently we support US theaters (Cinemark). Stay tuned!")
                     await browser.close()
+                    return
 
                 else:
                     # --- US PATH (Cinemark) ---
