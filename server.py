@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
+from movieseats.fetcher.amc import find_amc_theaters_and_seats
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
 from movieseats.fetcher.india import discover_india_showtimes, fetch_india_seats_browser, INDIA_CITIES
 from movieseats.seats.scorer import find_best_seats
@@ -295,32 +296,43 @@ Question: {query}"""}],
                     await browser.close()
 
                 else:
-                    # --- US PATH (Cinemark) ---
+                    # --- US PATH (Cinemark + AMC) ---
                     date_text = date
                     if date_text and "/" not in date_text:
                         month = datetime.date.today().month
                         date_text = f"{month}/{date_text}"
 
+                    # Search Cinemark
+                    yield _sse("status", f"Searching Cinemark theaters...")
                     theaters = await find_theaters_and_showtimes(
                         context, zipcode, correct_movie, date_text=date_text, time_pref=time_pref,
                     )
 
-                    if not theaters:
+                    if theaters:
+                        total_st = sum(len(t.showtimes) for t in theaters)
+                        for t in theaters:
+                            yield _sse("theater_progress", json.dumps({"name": t.name, "showtimes": len(t.showtimes)}))
+                        yield _sse("status", f"Checking Cinemark seats across {total_st} showtimes...")
+                        seat_data = await fetch_all_seat_maps(theaters, context)
+
+                    # Search AMC
+                    yield _sse("status", f"Searching AMC theaters...")
+                    try:
+                        amc_seats = await find_amc_theaters_and_seats(context, zipcode, movie_raw)
+                        if amc_seats:
+                            for st, sm in amc_seats:
+                                yield _sse("theater_progress", json.dumps({"name": st.theater_name, "showtimes": 1}))
+                            seat_data.extend(amc_seats)
+                    except Exception as e:
+                        logger.warning("AMC search failed: %s", str(e)[:60])
+
+                    await browser.close()
+
+                    if not seat_data:
                         yield _sse("chat_response", f"I couldn't find {correct_movie} at theaters near {location_display}. The movie might not be playing in your area, or showtimes haven't been posted yet. Try a different zipcode or check back later!")
                         session["history"].append({"role": "user", "content": message})
                         session["history"].append({"role": "assistant", "content": f"No theaters found showing {correct_movie} near {location_display}."})
-                        await browser.close()
                         return
-
-                    total_st = sum(len(t.showtimes) for t in theaters)
-
-                    for t in theaters:
-                        yield _sse("theater_progress", json.dumps({"name": t.name, "showtimes": len(t.showtimes)}))
-
-                    yield _sse("status", f"Checking seats across {total_st} showtimes...")
-
-                    seat_data = await fetch_all_seat_maps(theaters, context)
-                    await browser.close()
 
             if not seat_data:
                 yield _sse("error", "Could not load seat maps. Please try again.")
