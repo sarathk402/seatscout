@@ -3,12 +3,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Claude API
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# AWS Bedrock config (credentials via env vars, ~/.aws/credentials, or IAM role)
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
-# Models — use latest as of March 2026
-MODEL_FAST = "claude-haiku-4-5-20251001"    # Intent parsing, recommendations ($1/$5 MTok)
-MODEL_SMART = "claude-sonnet-4-6"           # Web search, complex reasoning ($3/$15 MTok)
+# Models — Bedrock cross-region inference profile IDs (March 2026)
+MODEL_FAST = "us.anthropic.claude-haiku-4-5-20251001-v1:0"   # Intent parsing, recommendations
+MODEL_SMART = "us.anthropic.claude-sonnet-4-6-20250514-v1:0" # Web search, complex reasoning
 
 # Browser
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
