@@ -9,11 +9,12 @@ import datetime
 from pathlib import Path
 
 import anthropic
+from anthropic import AsyncAnthropicBedrock
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import ANTHROPIC_API_KEY, MODEL_FAST, MODEL_SMART
+from config import AWS_REGION, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
@@ -39,7 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+client = AsyncAnthropicBedrock(aws_region=AWS_REGION)
 
 # Firestore
 try:
@@ -147,14 +148,11 @@ async def chat(request: Request):
             yield _sse("status", "Looking that up...")
 
             try:
+                # Note: web_search tool is Anthropic-native and not available on Bedrock.
+                # Claude answers from training knowledge instead.
                 response = await client.messages.create(
                     model=MODEL_SMART,
                     max_tokens=600,
-                    tools=[{
-                        "type": "web_search_20260209",
-                        "name": "web_search",
-                        "max_uses": 3,
-                    }],
                     messages=[{"role": "user", "content": f"""Answer this question about movies/theaters. Be helpful and concise (3-5 sentences max).
 
 IMPORTANT RULES:
@@ -478,19 +476,14 @@ async def _parse_intent(message: str, session: dict) -> dict | None:
         return None
 
 
-# --- Web Search (Sonnet 4.6 + web_search tool) ---
+# --- Movie Name Resolution (Sonnet 4.6, no web_search — Bedrock doesn't support it) ---
 
 async def _web_search_movie(movie_raw: str, zipcode: str) -> dict:
-    """Use Claude web search to find correct movie name, fun facts, and nearby theaters."""
+    """Use Claude to resolve correct movie name and Cinemark slug from training knowledge."""
     try:
         response = await client.messages.create(
             model=MODEL_SMART,
             max_tokens=800,
-            tools=[{
-                "type": "web_search_20260209",
-                "name": "web_search",
-                "max_uses": 3,
-            }],
             messages=[{"role": "user", "content": f"""I need to find the movie "{movie_raw}" at Cinemark theaters near zipcode {zipcode}.
 
 Search the web and tell me:
