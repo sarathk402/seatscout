@@ -8,7 +8,7 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
 # Models — Bedrock cross-region inference profile IDs (March 2026)
 MODEL_FAST = "us.anthropic.claude-haiku-4-5-20251001-v1:0"   # Intent parsing, recommendations
-MODEL_SMART = "us.anthropic.claude-sonnet-4-6-20250514-v1:0" # Web search, complex reasoning
+MODEL_SMART = "us.anthropic.claude-sonnet-4-6"               # Web search, complex reasoning
 
 # Browser
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
