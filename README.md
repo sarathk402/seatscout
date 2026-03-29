@@ -134,6 +134,8 @@ The ideal seat is **center of the row, about 2/3 back from the screen** — clos
 
 ## Architecture
 
+![SeatScout Architecture](docs/Excalidraw.png)
+
 ```
 User message
     │
