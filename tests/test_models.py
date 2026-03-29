@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from movieseats.seats.models import Seat, SeatMap, Showtime, SeatRecommendation, SearchResult
+from seats.seats.models import Seat, SeatMap, Showtime, SeatRecommendation, SearchResult
 
 
 def test_seat_creation():

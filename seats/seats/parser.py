@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 
-from movieseats.seats.models import Seat, SeatMap
+from seats.seats.models import Seat, SeatMap
 
 logger = logging.getLogger(__name__)
 
