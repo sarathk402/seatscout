@@ -19,12 +19,12 @@ from rich.console import Console
 from playwright.async_api import async_playwright
 
 from config import ANTHROPIC_API_KEY
-from movieseats.fetcher.theaters import find_theaters_and_showtimes
-from movieseats.fetcher.seats import fetch_all_seat_maps
-from movieseats.fetcher.marcus import find_marcus_theaters, fetch_marcus_seat_map
-from movieseats.brain import analyze_and_recommend
-from movieseats.results import display_results
-from movieseats.seats.models import SeatMap, Showtime
+from seats.fetcher.theaters import find_theaters_and_showtimes
+from seats.fetcher.seats import fetch_all_seat_maps
+from seats.fetcher.marcus import find_marcus_theaters, fetch_marcus_seat_map
+from seats.brain import analyze_and_recommend
+from seats.results import display_results
+from seats.seats.models import SeatMap, Showtime
 
 console = Console()
 

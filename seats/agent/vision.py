@@ -9,8 +9,8 @@ import logging
 import anthropic
 from playwright.async_api import Page
 
-from movieseats.browser.actions import take_screenshot, get_page_text
-from movieseats.agent.prompts import SEAT_MAP_EXTRACTION_PROMPT
+from seats.browser.actions import take_screenshot, get_page_text
+from seats.agent.prompts import SEAT_MAP_EXTRACTION_PROMPT
 from config import CLAUDE_MODEL
 
 logger = logging.getLogger(__name__)

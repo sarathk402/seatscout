@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from playwright.async_api import BrowserContext, Page
 
-from movieseats.seats.models import Seat, SeatMap, Showtime
+from seats.seats.models import Seat, SeatMap, Showtime
 
 logger = logging.getLogger(__name__)
 

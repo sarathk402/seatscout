@@ -6,13 +6,13 @@ import logging
 
 import anthropic
 
-from movieseats.browser.session import BrowserSession
-from movieseats.agent.loop import run_agent
-from movieseats.chains.base import ChainConfig
-from movieseats.chains.fandango import FANDANGO
-from movieseats.chains.amc import AMC
-from movieseats.chains.cinemark import CINEMARK
-from movieseats.seats.models import SearchResult
+from seats.browser.session import BrowserSession
+from seats.agent.loop import run_agent
+from seats.chains.base import ChainConfig
+from seats.chains.fandango import FANDANGO
+from seats.chains.amc import AMC
+from seats.chains.cinemark import CINEMARK
+from seats.seats.models import SearchResult
 from config import ANTHROPIC_API_KEY
 
 logger = logging.getLogger(__name__)

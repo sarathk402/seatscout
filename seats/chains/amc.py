@@ -1,4 +1,4 @@
-from movieseats.chains.base import ChainConfig
+from seats.chains.base import ChainConfig
 
 AMC = ChainConfig(
     name="amc",

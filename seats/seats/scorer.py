@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from movieseats.seats.models import Seat, SeatMap, SeatRecommendation, Showtime
+from seats.seats.models import Seat, SeatMap, SeatRecommendation, Showtime
 from config import WEIGHT_CENTER, WEIGHT_ROW, WEIGHT_ADJACENCY, IDEAL_ROW_RATIO
 
 logger = logging.getLogger(__name__)

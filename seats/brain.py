@@ -6,8 +6,8 @@ import logging
 
 import anthropic
 
-from movieseats.seats.models import SeatMap, Showtime, SeatRecommendation
-from movieseats.seats.scorer import find_best_seats
+from seats.seats.models import SeatMap, Showtime, SeatRecommendation
+from seats.seats.scorer import find_best_seats
 from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
 
 logger = logging.getLogger(__name__)
