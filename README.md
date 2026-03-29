@@ -1,17 +1,15 @@
-# MovieSeats
+# SeatScout
 
 **Find the best available movie theater seats near you — powered by AI.**
 
-### [Try it live → movieseats.org](https://movieseats.org)
-
-MovieSeats is an open-source tool that scans real theater websites, checks seat availability in real-time, and recommends the best seats based on position, row depth, and format. It works through a simple chat interface — just type what you want to watch and where.
+SeatScout is an open-source tool that scans real theater websites, checks seat availability in real-time, and recommends the best seats based on position, row depth, and format. It works through a simple chat interface — just type what you want to watch and where.
 
 ## How It Works
 
 ```
 You:  "Dhurandhar tomorrow evening near 75035, 2 tickets"
 
-MovieSeats scans 5 theaters, 15 showtimes in ~35 seconds...
+SeatScout scans 5 theaters, 15 showtimes in ~35 seconds...
 
 ★ Cinemark West Plano XD
   9:15 PM · Standard · $14.00
@@ -51,7 +49,8 @@ MovieSeats scans 5 theaters, 15 showtimes in ~35 seconds...
 ### Prerequisites
 
 - Python 3.10+
-- An [Anthropic API key](https://console.anthropic.com/settings/keys) (for AI features)
+- AWS credentials with Bedrock access (via `~/.aws/credentials`, env vars, or IAM role)
+- A [Brave Search API key](https://brave.com/search/api) (free tier: 2,000 queries/month)
 
 ### Installation
 
@@ -67,9 +66,9 @@ pip install fastapi uvicorn
 # Install browser for seat map scanning
 playwright install chromium
 
-# Set up your API key
+# Set up environment variables
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Edit .env and add your BRAVE_API_KEY (AWS credentials are picked up automatically)
 ```
 
 ### Run the Web App
@@ -221,7 +220,7 @@ seats/
 1. Fork this repo
 2. Go to [Railway](https://railway.app) → New Project → Deploy from GitHub
 3. Select your forked repo
-4. Add environment variable: `ANTHROPIC_API_KEY=your-key`
+4. Add environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `BRAVE_API_KEY`
 5. Railway auto-builds and deploys
 
 ### Docker
@@ -236,7 +235,10 @@ docker run -p 8000:8000 seatscout
 ```bash
 pip install -r requirements.txt fastapi uvicorn
 playwright install chromium
-export ANTHROPIC_API_KEY=your-key
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
+export AWS_REGION=us-east-1
+export BRAVE_API_KEY=your-brave-key
 python server.py
 ```
 
@@ -244,13 +246,20 @@ python server.py
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Claude API key from [console.anthropic.com](https://console.anthropic.com) |
+| `AWS_ACCESS_KEY_ID` | Yes* | AWS credentials for Bedrock access |
+| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS credentials for Bedrock access |
+| `AWS_SESSION_TOKEN` | No | Required if using temporary/SSO credentials |
+| `AWS_REGION` | No | AWS region for Bedrock (default: `us-east-1`) |
+| `BRAVE_API_KEY` | Recommended | [Brave Search API](https://brave.com/search/api) key for live movie data |
 | `PORT` | No | Server port (default: 8000) |
 | `HEADLESS` | No | Run browser headless (default: true) |
 
+*Not required if using `~/.aws/credentials`, an IAM role, or AWS SSO (`aws sso login`).
+
 ## Cost
 
-- **Anthropic API**: ~$0.01-0.02 per search (2 Claude calls: intent parsing + recommendation)
+- **AWS Bedrock**: ~$0.01-0.02 per search (Claude Haiku for intent/ranking, Sonnet for movie resolution)
+- **Brave Search**: Free tier covers 2,000 queries/month; $5/1,000 after that
 - **Infrastructure**: Free on Railway's starter plan
 - **Theater data**: Free (no API keys needed for Cinemark)
 
@@ -297,7 +306,8 @@ MIT License — use it however you want.
 ## Acknowledgments
 
 Built with:
-- [Anthropic Claude](https://anthropic.com) — AI for natural language understanding and recommendations
+- [AWS Bedrock](https://aws.amazon.com/bedrock) — Claude AI via Bedrock for natural language understanding and recommendations
+- [Brave Search](https://brave.com/search/api) — live web search for movie and theater data
 - [Playwright](https://playwright.dev) — browser automation for seat map extraction
 - [FastAPI](https://fastapi.tiangolo.com) — web server
 - [Rich](https://rich.readthedocs.io) — terminal output formatting
