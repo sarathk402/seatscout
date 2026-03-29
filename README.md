@@ -57,8 +57,8 @@ MovieSeats scans 5 theaters, 15 showtimes in ~35 seconds...
 
 ```bash
 # Clone the repo
-git clone https://github.com/rajptech/movieseats.git
-cd movieseats
+git clone https://github.com/sarathk402/seatscout.git
+cd seatscout
 
 # Install dependencies
 pip install -r requirements.txt
@@ -178,13 +178,13 @@ This gives **100% accurate seat data** — no AI hallucinations, no vision error
 ## Project Structure
 
 ```
-movieseats/
+seats/
 ├── server.py                    # FastAPI web server with chat API
 ├── main.py                      # CLI entry point
 ├── config.py                    # Settings and constants
 ├── web/
 │   └── index.html               # Chat interface (single file)
-├── movieseats/
+├── seats/
 │   ├── brain.py                 # Claude AI for recommendations
 │   ├── fetcher/
 │   │   ├── theaters.py          # Find theaters + showtimes
@@ -227,8 +227,8 @@ movieseats/
 ### Docker
 
 ```bash
-docker build -t movieseats .
-docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your-key movieseats
+docker build -t seatscout .
+docker run -p 8000:8000 seatscout
 ```
 
 ### Manual
@@ -285,7 +285,7 @@ Contributions welcome! Areas where help is needed:
 
 ### Adding a New Theater Chain
 
-1. Create `movieseats/fetcher/newchain.py`
+1. Create `seats/fetcher/newchain.py`
 2. Implement theater discovery (find showtimes near zipcode)
 3. Implement seat extraction (parse DOM for available/taken seats)
 4. The seat must return `Seat(row, number, status)` — the scorer handles the rest

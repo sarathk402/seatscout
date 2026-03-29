@@ -9,19 +9,19 @@ from enum import Enum
 import anthropic
 from playwright.async_api import Page
 
-from movieseats.agent.prompts import (
+from seats.agent.prompts import (
     SYSTEM_PROMPT,
     GOAL_SEARCH,
     GOAL_SELECT_SHOWTIME,
     GOAL_READ_SEATS,
 )
-from movieseats.agent.vision import perceive, extract_seat_map
-from movieseats.browser import actions
-from movieseats.browser.stealth import dismiss_popups, detect_captcha
-from movieseats.seats.models import SearchResult, Showtime
-from movieseats.seats.parser import parse_seat_map_response
-from movieseats.seats.scorer import find_best_seats
-from movieseats.chains.base import ChainConfig
+from seats.agent.vision import perceive, extract_seat_map
+from seats.browser import actions
+from seats.browser.stealth import dismiss_popups, detect_captcha
+from seats.seats.models import SearchResult, Showtime
+from seats.seats.parser import parse_seat_map_response
+from seats.seats.scorer import find_best_seats
+from seats.chains.base import ChainConfig
 from config import MAX_AGENT_STEPS
 
 logger = logging.getLogger(__name__)

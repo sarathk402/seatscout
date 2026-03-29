@@ -8,8 +8,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from movieseats.seats.models import SeatMap, Showtime, SeatRecommendation
-from movieseats.seats.scorer import find_best_seats
+from seats.seats.models import SeatMap, Showtime, SeatRecommendation
+from seats.seats.scorer import find_best_seats
 
 console = Console()
 

@@ -11,8 +11,8 @@ import logging
 
 from playwright.async_api import async_playwright, Browser, Page
 
-from movieseats.fetcher.theaters import ShowtimeInfo, TheaterInfo
-from movieseats.seats.models import Seat, SeatMap, Showtime
+from seats.fetcher.theaters import ShowtimeInfo, TheaterInfo
+from seats.seats.models import Seat, SeatMap, Showtime
 
 logger = logging.getLogger(__name__)
 

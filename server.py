@@ -16,11 +16,11 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import AWS_REGION, BRAVE_API_KEY, MODEL_FAST, MODEL_SMART
-from movieseats.fetcher.theaters import find_theaters_and_showtimes
-from movieseats.fetcher.seats import fetch_all_seat_maps
-# from movieseats.fetcher.browse import browse_movies_near  # disabled for now
+from seats.fetcher.theaters import find_theaters_and_showtimes
+from seats.fetcher.seats import fetch_all_seat_maps
+# from seats.fetcher.browse import browse_movies_near  # disabled for now
 # India support available in private repo
-from movieseats.seats.scorer import find_best_seats
+from seats.seats.scorer import find_best_seats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)

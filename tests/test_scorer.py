@@ -5,8 +5,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from movieseats.seats.models import Seat, SeatMap, Showtime
-from movieseats.seats.scorer import find_best_seats, score_single_seat
+from seats.seats.models import Seat, SeatMap, Showtime
+from seats.seats.scorer import find_best_seats, score_single_seat
 
 
 def _make_seat(row: str, number: int, status: str = "available") -> Seat:
