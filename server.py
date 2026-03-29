@@ -8,13 +8,14 @@ import time
 import datetime
 from pathlib import Path
 
+import aiohttp
 import anthropic
 from anthropic import AsyncAnthropicBedrock
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import AWS_REGION, MODEL_FAST, MODEL_SMART
+from config import AWS_REGION, BRAVE_API_KEY, MODEL_FAST, MODEL_SMART
 from movieseats.fetcher.theaters import find_theaters_and_showtimes
 from movieseats.fetcher.seats import fetch_all_seat_maps
 # from movieseats.fetcher.browse import browse_movies_near  # disabled for now
@@ -148,13 +149,14 @@ async def chat(request: Request):
             yield _sse("status", "Looking that up...")
 
             try:
-                # Note: web_search tool is Anthropic-native and not available on Bedrock.
-                # Claude answers from training knowledge instead.
+                search_results = await _brave_search(f"{query} movies theaters {location or zipcode or ''}")
+                search_context = f"\nHere are live web search results:\n{search_results}\n" if search_results else "\n(No live search results — use training knowledge.)\n"
+
                 response = await client.messages.create(
                     model=MODEL_SMART,
                     max_tokens=600,
                     messages=[{"role": "user", "content": f"""Answer this question about movies/theaters. Be helpful and concise (3-5 sentences max).
-
+{search_context}
 IMPORTANT RULES:
 - Do NOT use markdown links like [text](url). Just write plain text.
 - Do NOT say "check Fandango" or redirect to other websites. YOU are the movie expert.
@@ -476,17 +478,44 @@ async def _parse_intent(message: str, session: dict) -> dict | None:
         return None
 
 
-# --- Movie Name Resolution (Sonnet 4.6, no web_search — Bedrock doesn't support it) ---
+# --- Brave Search helper ---
+
+async def _brave_search(query: str, count: int = 5) -> str:
+    """Call Brave Search API and return a plain-text summary of results."""
+    if not BRAVE_API_KEY:
+        return ""
+    url = "https://api.search.brave.com/res/v1/web/search"
+    headers = {"Accept": "application/json", "X-Subscription-Token": BRAVE_API_KEY}
+    params = {"q": query, "count": count, "text_decorations": "false"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status != 200:
+                    logger.warning("Brave Search returned %s", resp.status)
+                    return ""
+                data = await resp.json()
+                results = data.get("web", {}).get("results", [])
+                lines = [f"{r.get('title', '')} — {r.get('description', '')} ({r.get('url', '')})" for r in results]
+                return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Brave Search failed: %s", e)
+        return ""
+
+
+# --- Movie Name Resolution (Sonnet 4.6 + Brave Search) ---
 
 async def _web_search_movie(movie_raw: str, zipcode: str) -> dict:
-    """Use Claude to resolve correct movie name and Cinemark slug from training knowledge."""
+    """Use Brave Search + Claude to resolve correct movie name and Cinemark slug."""
     try:
+        search_results = await _brave_search(f"{movie_raw} movie in theaters cinemark {zipcode}")
+        search_context = f"\nHere are live web search results:\n{search_results}\n" if search_results else "\n(No live search results available — use training knowledge.)\n"
+
         response = await client.messages.create(
             model=MODEL_SMART,
             max_tokens=800,
             messages=[{"role": "user", "content": f"""I need to find the movie "{movie_raw}" at Cinemark theaters near zipcode {zipcode}.
-
-Search the web and tell me:
+{search_context}
+Based on the above, tell me:
 1. The correct full movie title (the user may have misspelled it)
 2. The Cinemark URL slug for this movie (like "dhurandhar-the-revenge-hindi-with-english-subtitles")
 3. Is it currently in theaters?
