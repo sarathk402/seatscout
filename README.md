@@ -134,7 +134,9 @@ The ideal seat is **center of the row, about 2/3 back from the screen** — clos
 
 ## Architecture
 
-![SeatScout Architecture](docs/Excalidraw.png)
+![SeatScout Deployment Architecture](docs/Excalidraw.png)
+
+*Firebase Hosting serves the frontend · Railway runs the FastAPI backend · AWS Bedrock powers Claude AI · Brave Search provides live movie data · Playwright scrapes Cinemark seat maps*
 
 ```
 User message
