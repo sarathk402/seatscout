@@ -9,6 +9,9 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 # Brave Search API (https://brave.com/search/api — free tier: 2,000 queries/month)
 BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
 
+# Firestore — set to your own GCP project ID, or leave empty to disable logging
+FIRESTORE_PROJECT = os.getenv("FIRESTORE_PROJECT", "")
+
 # Models — Bedrock cross-region inference profile IDs (March 2026)
 MODEL_FAST = "us.anthropic.claude-haiku-4-5-20251001-v1:0"   # Intent parsing, recommendations
 MODEL_SMART = "us.anthropic.claude-sonnet-4-6"               # Web search, complex reasoning

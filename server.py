@@ -15,7 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import AWS_REGION, BRAVE_API_KEY, MODEL_FAST, MODEL_SMART
+from config import AWS_REGION, BRAVE_API_KEY, FIRESTORE_PROJECT, MODEL_FAST, MODEL_SMART
 from seats.fetcher.theaters import find_theaters_and_showtimes
 from seats.fetcher.seats import fetch_all_seat_maps
 # from seats.fetcher.browse import browse_movies_near  # disabled for now
@@ -45,12 +45,14 @@ client = AsyncAnthropicBedrock(aws_region=AWS_REGION)
 
 # Firestore
 try:
+    if not FIRESTORE_PROJECT:
+        raise ValueError("FIRESTORE_PROJECT not set — logging disabled")
     from google.cloud import firestore
-    db = firestore.AsyncClient(project="movieseats-app")
-    logger.info("Firestore connected")
+    db = firestore.AsyncClient(project=FIRESTORE_PROJECT)
+    logger.info("Firestore connected to project: %s", FIRESTORE_PROJECT)
 except Exception as e:
     db = None
-    logger.warning("Firestore not available: %s", str(e)[:50])
+    logger.warning("Firestore not available: %s", str(e)[:80])
 
 # Sessions
 sessions: dict[str, dict] = {}
