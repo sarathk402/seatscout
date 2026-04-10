@@ -81,69 +81,69 @@ label(0, 18, W, "SeatScout — Deployment Architecture", F_BIG, "#1e1e1e")
 # ── User ──────────────────────────────────────────────────────────────────────
 box(580, 58, 220, 52, "#a5d8ff", "#4a9eed", "User Browser (Chat UI)")
 
-# ── Google Cloud zone ──────────────────────────────────────────────────────────
-zone(30, 130, 530, 320, "#f0fdf4", "#22c55e", "Google Cloud Platform", "#15803d")
+# ── Google Cloud zone (left column) ──────────────────────────────────────────
+zone(30, 130, 240, 320, "#f0fdf4", "#22c55e", "Google Cloud Platform", "#15803d")
 
 # Firebase
-box(50, 165, 230, 62, "#bbf7d0", "#22c55e", "Firebase Hosting", "web/index.html · CDN · Free tier")
+box(48, 165, 205, 62, "#bbf7d0", "#22c55e", "Firebase Hosting", "web/index.html · CDN · Free tier")
 
 # Firestore
-box(50, 300, 230, 62, "#bbf7d0", "#22c55e", "Firestore (NoSQL)", "Usage logs · movieseats-app project")
+box(48, 300, 205, 62, "#bbf7d0", "#22c55e", "Firestore (NoSQL)", "Usage logs · movieseats-app project")
 
-# ── Railway zone ──────────────────────────────────────────────────────────────
-zone(310, 130, 240, 320, "#fffbeb", "#f59e0b", "Railway (PaaS)", "#b45309")
+# ── Railway zone (center column) ──────────────────────────────────────────────
+zone(300, 130, 240, 320, "#fffbeb", "#f59e0b", "Railway (PaaS)", "#b45309")
 
 # FastAPI
-box(325, 168, 210, 62, "#fde68a", "#f59e0b", "FastAPI Server", "Python 3.12 · Docker · SSE streams")
+box(315, 168, 210, 62, "#fde68a", "#f59e0b", "FastAPI Server", "Python 3.12 · Docker · SSE streams")
 
 # Playwright
-box(325, 248, 210, 58, "#fde68a", "#f59e0b", "Playwright", "Headless Chromium · Seat maps")
+box(315, 248, 210, 58, "#fde68a", "#f59e0b", "Playwright", "Headless Chromium · Seat maps")
 
 # Scorer
-box(325, 320, 210, 58, "#fde68a", "#f59e0b", "Seat Scorer", "Center 40% · Row 35% · Adj 25%")
+box(315, 320, 210, 58, "#fde68a", "#f59e0b", "Seat Scorer", "Center 40% · Row 35% · Adj 25%")
 
-# ── AWS zone ──────────────────────────────────────────────────────────────────
-zone(600, 130, 290, 190, "#fff7ed", "#f97316", "AWS Bedrock (us-east-1)", "#c2410c")
+# ── AWS zone (right column) ───────────────────────────────────────────────────
+zone(570, 130, 290, 190, "#fff7ed", "#f97316", "AWS Bedrock (us-east-1)", "#c2410c")
 
 # Haiku
-box(615, 165, 260, 58, "#fed7aa", "#f97316", "Claude Haiku 4.5", "Intent · Ranking · Chat replies")
+box(585, 165, 260, 58, "#fed7aa", "#f97316", "Claude Haiku 4.5", "Intent · Ranking · Chat replies")
 
 # Sonnet
-box(615, 242, 260, 58, "#fed7aa", "#f97316", "Claude Sonnet 4.6", "Movie search · Complex reasoning")
+box(585, 242, 260, 58, "#fed7aa", "#f97316", "Claude Sonnet 4.6", "Movie search · Complex reasoning")
 
-# ── External services ─────────────────────────────────────────────────────────
-zone(600, 340, 290, 115, "#eef2ff", "#6366f1", "External APIs", "#3730a3")
+# ── Brave Search (external) ───────────────────────────────────────────────────
+zone(570, 340, 290, 115, "#eef2ff", "#6366f1", "External APIs", "#3730a3")
 
-box(615, 368, 260, 58, "#e0e7ff", "#6366f1", "Brave Search API", "Live movie/theater data · 2k/mo free")
+box(585, 368, 260, 58, "#e0e7ff", "#6366f1", "Brave Search API", "Live movie/theater data · 2k/mo free")
 
 # Cinemark
-box(940, 190, 260, 58, "#fce7f3", "#ec4899", "Cinemark.com", "DOM scraping · .seatAvailable class")
+box(900, 190, 265, 58, "#fce7f3", "#ec4899", "Cinemark.com", "DOM scraping · .seatAvailable class")
 
 # ── GitHub ────────────────────────────────────────────────────────────────────
-box(480, 530, 300, 62, "#f1f5f9", "#475569", "GitHub: sarathk402/seatscout", "main branch · CI/CD auto-deploy")
+box(440, 530, 300, 62, "#f1f5f9", "#475569", "GitHub: sarathk402/seatscout", "main branch · CI/CD auto-deploy")
 
 # ── Arrows ────────────────────────────────────────────────────────────────────
 # User → Firebase
-arrow(620, 110, 190, 165, "#4a9eed")
+arrow(620, 110, 160, 165, "#4a9eed")
 # User → FastAPI
-arrow(660, 110, 450, 168, "#4a9eed")
+arrow(660, 110, 430, 168, "#4a9eed")
 # FastAPI → Haiku
-arrow(535, 200, 615, 194, "#f97316")
+arrow(525, 200, 585, 194, "#f97316")
 # FastAPI → Brave
-arrow(535, 215, 615, 385, "#6366f1")
+arrow(525, 220, 585, 385, "#6366f1")
 # Playwright → Cinemark
-arrow(535, 278, 940, 220, "#ec4899")
+arrow(525, 278, 900, 220, "#ec4899")
 # FastAPI → Firestore (dashed)
-arrow(325, 220, 280, 320, "#22c55e", dashed=True)
+arrow(315, 220, 253, 320, "#22c55e", dashed=True)
 # GitHub → Railway (dashed CI/CD)
-arrow(565, 530, 450, 452, "#475569", dashed=True)
+arrow(530, 530, 430, 452, "#475569", dashed=True)
 # GitHub → Firebase (dashed CI/CD)
-arrow(510, 530, 180, 227, "#475569", dashed=True)
+arrow(470, 530, 160, 227, "#475569", dashed=True)
 
 # ── Legend ────────────────────────────────────────────────────────────────────
-lx, ly = 940, 340
-rr(lx, ly, 260, 180, "#f9fafb", "#d1d5db", radius=8)
-label(lx, ly+8, 260, "Legend", get_font(14, bold=True), "#374151")
+lx, ly = 900, 340
+rr(lx, ly, 265, 180, "#f9fafb", "#d1d5db", radius=8)
+label(lx, ly+8, 265, "Legend", get_font(14, bold=True), "#374151")
 items = [
     ("━━", "#4a9eed", "User request / response"),
     ("━━", "#f97316", "Claude AI calls (Bedrock)"),
